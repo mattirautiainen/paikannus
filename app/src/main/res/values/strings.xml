@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Paikannin</string>
+    <string name="title_recipient">Vastaanottaja</string>
+    <string name="title_locate">Paikanna</string>
+    <string name="google_maps_key" translatable="false" templateMergeStrategy="preserve">
+    AIzaSyAx_VDOO0qHjbvAjS44F9jV50zXLCHk8uA
+</string>
+</resources>
