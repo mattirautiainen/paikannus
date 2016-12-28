@@ -1,20 +1,12 @@
 package rautiainen.matti.paikannin;
 
-import android.annotation.TargetApi;
 import android.content.DialogInterface;
-import android.content.Intent;
-import android.location.Criteria;
 import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
 import android.os.Bundle;
-import android.preference.PreferenceFragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v7.app.AlertDialog;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
-import android.view.Window;
 import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.Toast;
@@ -28,108 +20,128 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import static android.content.DialogInterface.BUTTON_NEGATIVE;
+import static android.content.DialogInterface.BUTTON_POSITIVE;
+
 public class MapActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap googleMap;
-    private LatLng positionNew;
-    private Marker markerNew;
-    private Marker markerOld;
     private Mailer mailer;
     private Locator locator;
+    private LocationIO disk;
+
+    private abstract class MapLocation {
+        private Marker marker;
+        private double latitude;
+        private double longitude;
+
+        public double getLatitude() {
+            return latitude;
+        }
+
+        public double getLongitude() {
+            return longitude;
+        }
+
+        public void addMarker(double lat, double lon) {
+            latitude = lat;
+            longitude = lon;
+            removeMarker();
+            marker = setMarker();
+        }
+
+        public abstract Marker setMarker();
+
+        public void removeMarker() {
+            if(marker != null)
+                marker.remove();
+        }
+    }
+
+    private MapLocation newLocation = new MapLocation() {
+        @Override
+        public Marker setMarker() {
+            return googleMap.addMarker(new MarkerOptions()
+                    .position(new LatLng(getLatitude(), getLongitude()))
+                    .title(getString(R.string.new_measurement))
+                    .snippet(getLatitude() + ", " + getLongitude())
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)));
+        }
+    };
+
+    private MapLocation oldLocation = new MapLocation() {
+        @Override
+        public Marker setMarker() {
+            return googleMap.addMarker(new MarkerOptions()
+                    .position(new LatLng(getLatitude(), getLongitude()))
+                    .title(getString(R.string.old_measurement))
+                    .snippet(getLatitude() + ", " + getLongitude())
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)));
+        }
+    };
+
+    DialogInterface.OnClickListener dialogListener = new DialogInterface.OnClickListener() {
+        public void onClick(DialogInterface dialog, int whichButton) {
+            switch(whichButton) {
+                case BUTTON_POSITIVE:
+                    mailer.sendCoordinates(newLocation.getLatitude(), newLocation.getLongitude());
+                    disk.writeCoordinates(newLocation.getLatitude(), newLocation.getLongitude());
+                    oldLocation.addMarker(newLocation.getLatitude(),newLocation.getLongitude());
+                    newLocation.removeMarker();
+                    break;
+                case BUTTON_NEGATIVE:
+                    break;
+            }
+        }
+    };
 
     Locator.LocationResult locationResult = new Locator.LocationResult(){
         @Override
         public void gotLocation(Location location){
-            if(location == null) {
-                //Toast.makeText(MapActivity.this, "Paikkatietoja ei saatu.", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            double latitude = location.getLatitude();
-            double longtitude = location.getLongitude();
-
-            positionNew = new LatLng(latitude, longtitude);
-
-            if(markerNew != null) {
-                markerNew.remove();
-            }
-            markerNew = googleMap.addMarker(new MarkerOptions().position(positionNew)
-                    .title("Uusi mittaus: " + latitude + ", " + longtitude)
-                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN)));
-            googleMap.moveCamera(CameraUpdateFactory.newLatLng(positionNew));
+            newLocation.addMarker(location.getLatitude(),location.getLongitude());
+            googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(location.getLatitude(), location.getLongitude())));
 
             AlertDialog.Builder builder = new AlertDialog.Builder(MapActivity.this);
-            builder.setMessage("Lähetetäänkö paikkatiedot sähköpostiin?").setPositiveButton("Kyllä", dialogClickListener)
-                    .setNegativeButton("Ei", dialogClickListener).setCancelable(false);
-
-            AlertDialog dialog = builder.create();
+            AlertDialog dialog = builder.setMessage(getString(R.string.send_to_email))
+                    .setPositiveButton(getString(R.string.yes), dialogListener)
+                    .setNegativeButton(getString(R.string.no), dialogListener)
+                    .setCancelable(false)
+                    .create();
             WindowManager.LayoutParams wmlp = dialog.getWindow().getAttributes();
             wmlp.gravity = Gravity.TOP;
             dialog.show();
         }
     };
 
-
-    DialogInterface.OnClickListener dialogClickListener = new DialogInterface.OnClickListener() {
-        @Override
-        public void onClick(DialogInterface dialog, int which) {
-            switch (which){
-                case DialogInterface.BUTTON_POSITIVE:
-                    mailer.sendCoordinates(positionNew.latitude, positionNew.longitude);
-                    markerNew.remove();
-                    if(markerOld != null) {
-                        markerOld.remove();
-                    }
-                    markerOld = googleMap.addMarker(new MarkerOptions()
-                            .position(positionNew)
-                            .title("Vanha mittaus: " + positionNew.latitude + ", " + positionNew.longitude)
-                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)));
-                    locator.writeCoordinates(positionNew.latitude,positionNew.longitude);
-                    break;
-
-                case DialogInterface.BUTTON_NEGATIVE:
-                    break;
-            }
-        }
-    };
-
     public void onMapReady(GoogleMap googleMap) {
         this.googleMap = googleMap;
-        LatLng location = locator.readCoordinates();
+        LatLng location = disk.readCoordinates();
         if(location != null) {
-            markerOld = googleMap.addMarker(new MarkerOptions()
-                    .position(location)
-                    .title("Vanha mittaus: " + location.latitude + ", " + location.longitude)
-                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)));
+            oldLocation.addMarker(location.latitude,location.longitude);
         }
     }
 
     public void getLocation(View view) {
         locator.requestLocation(locationResult);
-        Toast.makeText(MapActivity.this, "Paikkatietoja haetaan...", Toast.LENGTH_LONG).show();
+        Toast.makeText(MapActivity.this, getString(R.string.locating), Toast.LENGTH_LONG).show();
     }
 
     public void editRecipient(View view) {
-        AlertDialog.Builder alert = new AlertDialog.Builder(this);
-
-        alert.setTitle("Vastaanottaja");
-        alert.setMessage("Aseta vastaanottajan sähköpostiosoite");
-
         final EditText input = new EditText(this);
         input.setText(mailer.getRecipientAddress());
-        alert.setView(input);
 
-        alert.setPositiveButton("Hyväksy", new DialogInterface.OnClickListener() {
+        AlertDialog.Builder dialog = new AlertDialog.Builder(this);
+        dialog.setTitle(getString(R.string.title_recipient)).setMessage(getString(R.string.set_email_address)).setView(input);
+        dialog.setPositiveButton(getString(R.string.accept), new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
                 mailer.setRecipientAddress(input.getText().toString());
             }
         });
-
-        alert.setNegativeButton("Peruuta", new DialogInterface.OnClickListener() {
+        dialog.setNegativeButton(getString(R.string.cancel), new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
             }
         });
-
-        alert.show();
+        dialog.show();
     }
 
     protected void onCreate(Bundle savedInstanceState) {
@@ -138,6 +150,7 @@ public class MapActivity extends FragmentActivity implements OnMapReadyCallback 
 
         mailer = new Mailer(this);
         locator = new Locator(this);
+        disk = new LocationIO(this);
 
         SupportMapFragment fm = (SupportMapFragment)
                 getSupportFragmentManager().findFragmentById(R.id.map);
