@@ -7,6 +7,12 @@ android:fitsSystemWindows="true"
     android:orientation="vertical"
 tools:context="rautiainen.matti.paikannin.MapActivity">
 
+    <fragment xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/map"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        class="com.google.android.gms.maps.SupportMapFragment"/>
+
     <Button android:id="@+id/locate"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -17,13 +23,9 @@ tools:context="rautiainen.matti.paikannin.MapActivity">
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_toRightOf="@+id/locate"
+        android:layout_toEndOf="@+id/locate"
         android:onClick="editRecipient"
         android:text="@string/title_recipient" />
 
-    <fragment xmlns:android="http://schemas.android.com/apk/res/android"
-        android:id="@+id/map"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        class="com.google.android.gms.maps.SupportMapFragment"/>
 
 </RelativeLayout>
