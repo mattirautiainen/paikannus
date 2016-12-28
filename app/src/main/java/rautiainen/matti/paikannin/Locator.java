@@ -5,7 +5,6 @@ import android.content.Context;
 import android.location.Location;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
-import android.util.Log;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
@@ -13,16 +12,6 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.maps.model.LatLng;
-
-import java.io.BufferedReader;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-
-import static android.content.Context.MODE_PRIVATE;
 
 public class Locator implements LocationListener,
         GoogleApiClient.ConnectionCallbacks,
@@ -49,20 +38,23 @@ public class Locator implements LocationListener,
         if (location.getAccuracy() < MIN_ACCURACY) {
             locationResult.gotLocation(location);
             LocationServices.FusedLocationApi.removeLocationUpdates(googleApiClient, this);
+            googleApiClient.disconnect();
         }
-
     }
 
     public void requestLocation(LocationResult locationResult) {
         this.locationResult = locationResult;
-        googleApiClient = new GoogleApiClient.Builder(this.context)
-                .addApi(LocationServices.API)
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
-                .build();
-        googleApiClient.connect();
+        if (googleApiClient == null) {
+            googleApiClient = new GoogleApiClient.Builder(this.context)
+                    .addApi(LocationServices.API)
+                    .addConnectionCallbacks(this)
+                    .addOnConnectionFailedListener(this)
+                    .build();
+        }
+        if (!googleApiClient.isConnected()) {
+            googleApiClient.connect();
+        }
     }
-
 
     @Override
     public void onConnected(Bundle dataBundle) {
@@ -83,54 +75,16 @@ public class Locator implements LocationListener,
     private boolean servicesAvailable() {
         int resultCode = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(context);
 
-        if (ConnectionResult.SUCCESS == resultCode) {
+        if (ConnectionResult.SUCCESS == resultCode)
             return true;
-        } else {
+        else
             return false;
-        }
     }
 
     @Override
     public void onConnectionSuspended(int i) {
     }
 
-    public void writeCoordinates(double latitude, double longtitude) {
-
-        try {
-            FileOutputStream fou = context.openFileOutput("coordinates.txt", MODE_PRIVATE);
-            OutputStreamWriter outputStreamWriter = new OutputStreamWriter(fou);
-            outputStreamWriter.write(String.valueOf(latitude)+"\r\n"+String.valueOf(longtitude));
-            outputStreamWriter.close();
-        }
-        catch (IOException e) {
-            Log.e("Exception", "Failed to write to file: " + e.toString());
-        }
-    }
-
-    public LatLng readCoordinates() {
-
-        String latitude = null;
-        String longtitude = null;
-
-        try {
-            InputStream inputStream = context.openFileInput("coordinates.txt");
-
-            if ( inputStream != null ) {
-                InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
-                BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
-                latitude = bufferedReader.readLine();
-                longtitude = bufferedReader.readLine();
-                inputStream.close();
-            }
-        } catch (IOException e) {
-            Log.e("Exception", "Failed to read file: " + e.toString());
-        }
-        if (latitude != null && longtitude != null)
-            return new LatLng(Double.parseDouble(latitude), Double.parseDouble(longtitude));
-        else {
-            return null;
-        }
-    }
     public static abstract class LocationResult {
         public abstract void gotLocation(Location location);
     }

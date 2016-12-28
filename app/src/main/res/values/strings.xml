@@ -3,6 +3,20 @@
     <string name="title_recipient">Vastaanottaja</string>
     <string name="title_locate">Paikanna</string>
     <string name="google_maps_key" translatable="false" templateMergeStrategy="preserve">
-    AIzaSyAx_VDOO0qHjbvAjS44F9jV50zXLCHk8uA
-</string>
+
+    </string>
+
+    <string name="new_measurement">Uusi mittaus</string>
+    <string name="accept">Hyväksy</string>
+    <string name="cancel">Peruuta</string>
+    <string name="old_measurement">Vanha mittaus</string>
+    <string name="send_to_email">Lähetetäänkö paikkatiedot sähköpostiin?</string>
+    <string name="yes">Kyllä</string>
+    <string name="no">Ei</string>
+    <string name="locating">"Paikkatietoja haetaan..."</string>
+    <string name="set_email_address">Aseta vastaanottajan sähköpostiosoite</string>
+    <string name="coordinates">Koordinaatit</string>
+    <string name="choose_program">Valitse ohjelma</string>
+    <string name="no_email_installed">Ei sähköpostiohjelmia asennettuna.</string>
+
 </resources>
